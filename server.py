@@ -1,5 +1,6 @@
 import aiofiles
 import asyncio
+import os
 
 from aiohttp import web
 
@@ -7,11 +8,16 @@ from aiohttp import web
 async def archivate(request):
     archive_hash = request.match_info.get('archive_hash')
     photos_path = f'./test_photos/{archive_hash}'
-    command = (f'zip -r - {photos_path}')
+    if not os.path.exists(photos_path):
+        raise web.HTTPBadRequest(text='Archive does not exist of was removed')
+    command = f'zip -jr - {photos_path}'
+
     proc = await asyncio.create_subprocess_shell(
         command,
         stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE)
+        stderr=asyncio.subprocess.PIPE,
+    )
+
     headers = {
         'Content-Type': 'application/zip',
         'Content-Disposition': 'attachment; filename="archive.zip"',
