@@ -33,7 +33,7 @@ async def archivate(request):
 
     try:
         while True:
-            await asyncio.sleep(1)
+            # await asyncio.sleep(0.1)
             logging.debug('Sending archive chunk')
             chunk = await proc.stdout.read(1024 * 1024)
             if proc.stdout.at_eof():
@@ -42,13 +42,17 @@ async def archivate(request):
             await response.write(chunk)
     except asyncio.CancelledError:
         logging.debug('Download was interrupted')
+        await proc.communicate()
         raise
     finally:
-        parent = psutil.Process(proc.pid)
-        for child in parent.children():
-            child.kill()
-        parent.kill()
-        logging.debug('Process killed')
+        try:
+            parent = psutil.Process(proc.pid)
+            for child in parent.children():
+                child.kill()
+            parent.kill()
+            logging.debug('Process killed')
+        except psutil.NoSuchProcess:
+            pass
     logging.debug('Returning a full response')
     return response
 
