@@ -2,6 +2,7 @@ import aiofiles
 import asyncio
 import logging
 import os
+import psutil
 
 from aiohttp import web
 
@@ -20,6 +21,7 @@ async def archivate(request):
         command,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
+        stdin=asyncio.subprocess.PIPE,
     )
 
     headers = {
@@ -29,13 +31,25 @@ async def archivate(request):
     response = web.StreamResponse(headers=headers)
     await response.prepare(request)
 
-    while True:
-        logging.debug('Sending archive chunk')
-        chunk = await proc.stdout.read(1024 * 1024)
-        if proc.stdout.at_eof():
-            logging.debug('End of the archive')
-            break
-        await response.write(chunk)
+    try:
+        while True:
+            await asyncio.sleep(1)
+            logging.debug('Sending archive chunk')
+            chunk = await proc.stdout.read(1024 * 1024)
+            if proc.stdout.at_eof():
+                logging.debug('End of the archive')
+                break
+            await response.write(chunk)
+    except asyncio.CancelledError:
+        logging.debug('Download was interrupted')
+        raise
+    finally:
+        parent = psutil.Process(proc.pid)
+        for child in parent.children():
+            child.kill()
+        parent.kill()
+        logging.debug('Process killed')
+    logging.debug('Returning a full response')
     return response
 
 
