@@ -56,9 +56,11 @@ async def archivate(request, delay, folder):
 
     headers = {
         'Content-Type': 'application/zip',
+        'Trasfer-Encoding': 'chunked',
         'Content-Disposition': 'attachment; filename="archive.zip"',
     }
     response = web.StreamResponse(headers=headers)
+    response.enable_chunked_encoding()
     await response.prepare(request)
 
     try:
