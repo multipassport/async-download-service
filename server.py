@@ -45,10 +45,10 @@ async def archivate(request, delay, folder):
         message = f'Archive {folder} does not exist of was removed'
         logging.exception(message)
         raise web.HTTPBadRequest(text=message)
-    command = f'zip -jr - {photos_path}'
+    command = 'zip', '-jr', '-', photos_path
 
-    proc = await asyncio.create_subprocess_shell(
-        command,
+    proc = await asyncio.create_subprocess_exec(
+        *command,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         stdin=asyncio.subprocess.PIPE,
@@ -77,14 +77,8 @@ async def archivate(request, delay, folder):
         await proc.communicate()
         raise
     finally:
-        try:
-            parent = psutil.Process(proc.pid)
-            for child in parent.children():
-                child.kill()
-            parent.kill()
-            logging.debug('Process killed')
-        except psutil.NoSuchProcess:
-            pass
+        proc.kill()
+        logging.debug('Process killed')
     logging.debug('Returning a full response')
     return response
 
