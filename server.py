@@ -4,7 +4,6 @@ import asyncio
 import logging
 import os
 import pathlib
-import psutil
 
 from aiohttp import web
 from functools import partial
@@ -38,15 +37,15 @@ def create_parser():
 
 async def archivate(request, delay, folder):
     logging.debug('Handling archive downloading request')
-    if not folder:
-        folder = request.match_info.get('archive_hash')
-    photos_path = f'./test_photos/{folder}'
+
+    archive_hash = request.match_info.get('archive_hash', folder)
+    photos_path = os.path.join('./test_photos', archive_hash)
     if not os.path.exists(photos_path):
-        message = f'Archive {folder} does not exist of was removed'
+        message = f'Archive {archive_hash} does not exist of was removed'
         logging.exception(message)
         raise web.HTTPBadRequest(text=message)
-    command = 'zip', '-jr', '-', photos_path
 
+    command = 'zip', '-r', '-', photos_path
     proc = await asyncio.create_subprocess_exec(
         *command,
         stdout=asyncio.subprocess.PIPE,
@@ -105,7 +104,7 @@ if __name__ == '__main__':
     app.add_routes([
         web.get('/', handle_index_page),
         web.get(
-            '/archive/{archive_hash}/',
+            '/archive/{archive_hash}',
             partial(
                 archivate,
                 folder=arguments.dir,
